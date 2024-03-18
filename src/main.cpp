@@ -200,7 +200,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 })
             .expect([this, repoapi, meta](std::string const& error) {
                     if (!this) return;
-                    log::warn(__FUNCTION__" {}", error);
+                    log::warn("{}", error);
                     this->requestLatestStats(repoapi);
                 });
     }
