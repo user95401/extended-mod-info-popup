@@ -48,3 +48,11 @@ jobs:
         with:
           name: Build Output
           path: ${{ steps.build.outputs.build-output }}
+          
+      - name: Release with Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ steps.build.outputs.build-output }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
