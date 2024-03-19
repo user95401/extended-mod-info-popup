@@ -2,6 +2,8 @@
 #include <Geode/loader/Index.hpp>
 using namespace geode::prelude;
 
+#include <regex>
+
 std::string convertSize(size_t size) {
     static const char* SIZES[] = { "B", "KB", "MB", "GB" };
     int div = 0;
@@ -33,6 +35,14 @@ std::string abbreviateNumber(int num) {
     }
     else return fmt::format("{}", num);
     return fmt::format("{:.1f}{}", n, suffix);
+}
+std::string formatData(std::string str) {
+    str;//2024-03-04T14:46:27Z
+    //(T n' Z)'s
+    str = std::regex_replace(str, std::regex("[TZ]+"), " ");
+    //- => .
+    str = std::regex_replace(str, std::regex("[-]+"), ".");
+    return str;
 }
 
 matjson::Value AUTH_DATA;
@@ -113,13 +123,29 @@ public:
     EventListener<ModInstallFilter> m_installListener;
 };
 
-#include <regex>
+class ReleaseData {
+public:
+    matjson::Value m_json = "{}";
+    std::string m_modID = Mod::get()->getMetadata().getID();
+    static auto create(matjson::Value json, std::string modID) {
+        auto ret = new ReleaseData;
+        ret->m_json = json;
+        ret->m_modID = modID;
+        return ret;
+    }
+};
+std::vector<ReleaseData*> releases;
+void setupStats(matjson::Value const& cattogirl, ModMetadata meta) {
+    log::info("{}", __FUNCTION__);
+    ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
+    std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
+    releases.push_back(ReleaseData::create(cattogirl, meta.getID()));
+}
+
 #include <Geode/modify/FLAlertLayer.hpp>
-#define isBad(node) bool(!node)
-#define isGood(node) bool(node)
 class $modify(FLAlertLayerExt, FLAlertLayer) {
     ModMetadata getModMeta() {
-        if (isBad(this)) return geode::getMod()->getMetadata();
+        if (!dynamic_cast<CCMenu*>(this->m_buttonMenu)) return Mod::get()->getMetadata();
         //variants
         LocalModInfoPopup* aLocalModInfoPopup = typeinfo_cast<LocalModInfoPopup*>(this);
         IndexItemInfoPopup* aIndexItemInfoPopup = typeinfo_cast<IndexItemInfoPopup*>(this);
@@ -133,65 +159,6 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         }
         return meta;
     }
-    void setupStats(matjson::Value const& cattogirl) {
-        if (isBad(this)) return;
-        log::info("{}", __FUNCTION__);
-        auto meta = getModMeta();
-        ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
-        std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
-        CCMenu* statsContainerMenu = (isBad(this)) ?
-            nullptr :
-            typeinfo_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
-        //download_count
-        {
-            auto download_count = CCLabelTTF::create(
-                abbreviateNumber(cattogirl["assets"][0]["download_count"].as_int()).c_str(),
-                "arial",
-                12.f
-            );
-            download_count->runAction(CCEaseExponentialOut::create(CCFadeIn::create(0.5f)));
-            if (statsContainerMenu) statsContainerMenu->addChild(download_count);
-            download_count->setAnchorPoint({ 0.f, 0.5f });
-            download_count->setScale(0.65f);
-            download_count->addChild(CCSprite::createWithSpriteFrameName("GJ_sDownloadIcon_001.png"), 0, 521);
-            download_count->getChildByTag(521)->setAnchorPoint({ 1.0f, 0.0f });
-        };
-        {
-            auto size = CCLabelTTF::create(
-                convertSize(cattogirl["assets"][0]["size"].as_int()).c_str(),
-                "arial",
-                12.f
-            );
-            size->runAction(CCEaseExponentialOut::create(CCFadeIn::create(0.5f)));
-            if (statsContainerMenu) statsContainerMenu->addChild(size);
-            size->setAnchorPoint({ 0.f, 0.5f });
-            size->setScale(0.65f);
-            size->addChild(CCSprite::createWithSpriteFrameName("geode.loader/changelog.png"), 0, 521);
-            size->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
-            size->getChildByTag(521)->setScale(0.6f);
-        };
-        {
-            std::string str = cattogirl["assets"][0]["updated_at"].as_string();//2024-03-04T14:46:27Z
-            //(T n' Z)'s
-            str = std::regex_replace(str, std::regex("[TZ]+"), " ");
-            //- => .
-            str = std::regex_replace(str, std::regex("[-]+"), ".");
-            //label
-            auto published_at = CCLabelTTF::create(
-                str.data(),
-                "arial",
-                12.f
-            );
-            published_at->runAction(CCEaseExponentialOut::create(CCFadeIn::create(0.5f)));
-            if (statsContainerMenu) statsContainerMenu->addChild(published_at);
-            published_at->setAnchorPoint({ 0.f, 0.5f });
-            published_at->setScale(0.65f);
-            published_at->addChild(CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"), 0, 521);
-            published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
-            published_at->getChildByTag(521)->setScale(0.6f);
-        };
-        if (statsContainerMenu) statsContainerMenu->updateLayout();
-    }
     void requestStats(std::string repoapi, ModMetadata meta) {
         auto endpoint = repoapi + "/releases/tags/" + meta.getVersion().toString();
         log::info("{}({})", __FUNCTION__, endpoint);
@@ -201,17 +168,17 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .header("X-GitHub-Api-Version", "2022-11-28")
             .fetch(endpoint)
             .json()
-            .then([this](matjson::Value const& cattogirl) {
-                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
-                    this->setupStats(cattogirl);
+            .then([this, repoapi, meta](matjson::Value const& cattogirl) {
+                    log::info("{}", __FUNCTION__);
+                    setupStats(cattogirl, meta);
                 })
             .expect([this, repoapi, meta](std::string const& error) {
-                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
                     log::warn("{}", error);
-                    this->requestLatestStats(repoapi);
+                    requestLatestStats(this, repoapi, meta);
                 });
     }
-    void requestLatestStats(std::string repoapi) {
+    static void requestLatestStats(FLAlertLayerExt* __this, std::string repoapi, ModMetadata meta) {
+        if (!__this) return;
         auto endpoint = repoapi + "/releases/latest";
         log::info("{}({})", __FUNCTION__, endpoint);
         web::AsyncWebRequest()
@@ -220,23 +187,45 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .body("{\"access_token\": \"" + ACCESS_TOKEN + "\"}")
             .fetch(endpoint)
             .json()
-            .then([this](matjson::Value const& cattogirl) {
-                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
-                    //log::info(__FUNCTION__" {}", cattogirl.dump());
-                    this->setupStats(cattogirl);
+            .then([__this, repoapi, meta](matjson::Value const& cattogirl) {
+                    log::info("{}", __FUNCTION__);
+                    setupStats(cattogirl, meta);
                 })
-            .expect([this, endpoint](std::string const& error) {
-                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
+            .expect([__this, repoapi, meta, endpoint](std::string const& error) {
                     log::info("{} => {}", endpoint, error);
-                    this->requestLocalStats();
+                    requestLocalStats(__this, repoapi, meta);
                 });
     }
-    void requestLocalStats() {
+    static void requestLocalStats(FLAlertLayerExt* __this, std::string repoapi, ModMetadata meta) {
+        if (!__this) return;
         log::info("{}...", __FUNCTION__);
-        auto meta = getModMeta();
         std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
         if (!json.good()) return log::warn("{}", "cant get locally saved release data");
-        if (isGood(this)) this->setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()));
+        setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta);
+    }
+    void updateStats(float) {
+        if (!typeinfo_cast<ModInfoPopup*>(this)) return;
+        //json
+        matjson::Value json = "{}";
+        for (auto asd : releases) {
+            if (asd->m_modID == getModMeta().getID()) json = asd->m_json;
+        }
+        if (!json.contains("assets")) return;
+        //nodes
+        auto statsContainerMenu = dynamic_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
+        auto download_count = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("download_count"));
+        auto size = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("size"));
+        auto published_at = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("published_at"));
+        if(!statsContainerMenu) return;
+        if(!download_count) return;
+        if(!size) return;
+        if(!published_at) return;
+        //setup labels
+        download_count->setString(abbreviateNumber(json["assets"][0]["download_count"].as_int()).c_str());
+        size->setString(convertSize(json["assets"][0]["size"].as_int()).c_str());
+        published_at->setString(formatData(json["assets"][0]["updated_at"].as_string()).c_str());
+        statsContainerMenu->updateLayout();
+
     }
     void openWebPage(CCObject*) {
         auto meta = this->getModMeta();
@@ -244,58 +233,103 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             std::string("https://geode-sdk.org/mods/" + meta.getID()).data()
         );
     }
-    void tryCustomSetup(float) {
-        if (!typeinfo_cast<ModInfoPopup*>(this)) return;
-        auto meta = this->getModMeta();
-        //makeupthegitrepolink
-        {
-            std::string repo = meta.getRepository()
-                .value_or(fmt::format(
-                    "https://github.com/{}/{}",
-                    meta.getDeveloper(),
-                    meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
-                ));
-            std::string repoapi = std::regex_replace(
-                repo,
-                std::regex("https://github.com/"),
-                "https://api.github.com/repos/"
-            );
-            generateAuthorizationData();
-            this->requestStats(repoapi, meta);
-        };
-        //add official stuff
-        if (Index::get()->isKnownItem(meta.getID(), meta.getVersion())) {
-            //webBtn.png
-            auto webBtn = CCMenuItemSpriteExtra::create(
-                CCSprite::create("webBtn.png"_spr),
-                this, menu_selector(FLAlertLayerExt::openWebPage)
-            );
-            this->m_buttonMenu->addChild(webBtn);
-            webBtn->setID("webBtn");
-            webBtn->setPosition(22.f, 188.f);
-            webBtn->setScale(0.75f);
-            webBtn->m_baseScale = (0.75f);
-        };
-        //aaa yes
-        CCMenu* statsContainerMenu = CCMenu::create();
-        statsContainerMenu->setAnchorPoint({ 0.f, 0.0f });
-        statsContainerMenu->setPosition({ 50.f, 196.f });
-        statsContainerMenu->setScale(0.7f);
-        statsContainerMenu->setID("statsContainerMenu");
-        statsContainerMenu->setLayout(
-            RowLayout::create()
-            ->setGap(20.f)
-            ->setGrowCrossAxis(true)
-            ->setAxisAlignment(AxisAlignment::Start)
-        );
-        statsContainerMenu->updateLayout();
-        if(this->m_buttonMenu) this->m_buttonMenu->addChild(statsContainerMenu);
-    }
     virtual void show() {
-        FLAlertLayer::show();
         //ModInfoPopup
         ModInfoPopup* aModInfoPopup = typeinfo_cast<ModInfoPopup*>(this);
-        if (aModInfoPopup) aModInfoPopup->scheduleOnce(schedule_selector(FLAlertLayerExt::tryCustomSetup), 0.001f);
+        if (aModInfoPopup) {
+            auto meta = this->getModMeta();
+            //makeupthegitrepolink
+            {
+                std::string repo = meta.getRepository()
+                    .value_or(fmt::format(
+                        "https://github.com/{}/{}",
+                        meta.getDeveloper(),
+                        meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
+                    ));
+                std::string repoapi = std::regex_replace(
+                    repo,
+                    std::regex("https://github.com/"),
+                    "https://api.github.com/repos/"
+                );
+                generateAuthorizationData();
+                this->requestStats(repoapi, meta);
+            };
+            //add official stuff
+            if (Index::get()->isKnownItem(meta.getID(), meta.getVersion())) {
+                //webBtn.png
+                auto webBtn = CCMenuItemSpriteExtra::create(
+                    CCSprite::create("webBtn.png"_spr),
+                    this, menu_selector(FLAlertLayerExt::openWebPage)
+                );
+                this->m_buttonMenu->addChild(webBtn);
+                webBtn->setID("webBtn");
+                webBtn->setPosition(22.f, 188.f);
+                webBtn->setScale(0.75f);
+                webBtn->m_baseScale = (0.75f);
+            };
+            //statsContainerMenu
+            {
+                CCMenu* statsContainerMenu = CCMenu::create();
+                this->m_buttonMenu->addChild(statsContainerMenu, 0, 562);
+                statsContainerMenu->setID("statsContainerMenu");
+                statsContainerMenu->setAnchorPoint({ 0.f, 0.0f });
+                statsContainerMenu->setPosition({ 50.f, 196.f });
+                statsContainerMenu->setScale(0.7f);
+                statsContainerMenu->setLayout(
+                    RowLayout::create()
+                    ->setGap(20.f)
+                    ->setGrowCrossAxis(true)
+                    ->setAxisAlignment(AxisAlignment::Start)
+                );
+                statsContainerMenu->updateLayout();
+                {
+                    auto download_count = CCLabelTTF::create(
+                        "...",
+                        "arial",
+                        12.f
+                    );
+                    statsContainerMenu->addChild(download_count);
+                    download_count->setID("download_count");
+                    download_count->setAnchorPoint({ 0.f, 0.5f });
+                    download_count->setScale(0.65f);
+                    download_count->addChild(CCSprite::createWithSpriteFrameName("GJ_sDownloadIcon_001.png"), 0, 521);
+                    download_count->getChildByTag(521)->setAnchorPoint({ 1.0f, 0.0f });
+                };
+                {
+                    auto size = CCLabelTTF::create(
+                        "...",
+                        "arial",
+                        12.f
+                    );
+                    statsContainerMenu->addChild(size);
+                    size->setID("size");
+                    size->setAnchorPoint({ 0.f, 0.5f });
+                    size->setScale(0.65f);
+                    size->addChild(CCSprite::createWithSpriteFrameName("geode.loader/changelog.png"), 0, 521);
+                    size->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
+                    size->getChildByTag(521)->setScale(0.6f);
+                };
+                {
+                    auto published_at = CCLabelTTF::create(
+                        "...",
+                        "arial",
+                        12.f
+                    );
+                    statsContainerMenu->addChild(published_at);
+                    published_at->setID("published_at");
+                    published_at->setAnchorPoint({ 0.f, 0.5f });
+                    published_at->setScale(0.65f);
+                    published_at->addChild(CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"), 0, 521);
+                    published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
+                    published_at->getChildByTag(521)->setScale(0.6f);
+                };
+                statsContainerMenu->updateLayout();
+            };
+            //upd
+            this->updateStats(0.f);
+            aModInfoPopup->schedule(schedule_selector(FLAlertLayerExt::updateStats), 0.1f);
+        }
+        FLAlertLayer::show();
     }
 };
 

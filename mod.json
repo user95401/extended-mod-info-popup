@@ -1,11 +1,11 @@
 {
 	"geode": "2.0.0-beta.21",
-	"gd": {"win": "2.204", "android": "2.205" },
+	"gd": { "win": "2.204", "android": "2.205" },
 	"version": "v1.0.0",
 	"id": "user95401.extended-mod-info-popup",
 	"name": "extended-mod-info-popup",
 	"developer": "user95401",
-	"description": "show downloads and some btns lol",
+	"description": "show release info and add some btns",
 	"resources": {
 		"sprites": [ "sprites/*.png" ]
 	}
