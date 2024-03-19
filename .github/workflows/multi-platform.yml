@@ -56,5 +56,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           prerelease : true
+          token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
           files: ${{ steps.build.outputs.build-output }}
           
