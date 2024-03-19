@@ -52,6 +52,7 @@ jobs:
   releasewnotes:
     name: Release with Notes
     runs-on: ubuntu-latest
+    needs: ['build']
       
     steps:
         - uses: softprops/action-gh-release@v1
