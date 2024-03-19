@@ -141,6 +141,48 @@ void setupStats(matjson::Value const& cattogirl, ModMetadata meta) {
     std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
     releases.push_back(ReleaseData::create(cattogirl, meta.getID()));
 }
+void requestLocalStats(std::string repoapi, ModMetadata meta) {
+    log::info("{}...", __FUNCTION__);
+    std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
+    if (!json.good()) return log::warn("{}", "cant get locally saved release data");
+    setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta);
+}
+void requestLatestStats(std::string repoapi, ModMetadata meta) {
+    auto endpoint = repoapi + "/releases/latest";
+    log::info("{}({})", __FUNCTION__, endpoint);
+    web::AsyncWebRequest()
+        .userAgent("extended-mod-info-pop")
+        .header("Authorization", AUTH_HEADER_DATA)
+        .body("{\"access_token\": \"" + ACCESS_TOKEN + "\"}")
+        .fetch(endpoint)
+        .json()
+        .then([repoapi, meta](matjson::Value const& cattogirl) {
+                log::info("{}", __FUNCTION__);
+                setupStats(cattogirl, meta);
+            })
+        .expect([repoapi, meta, endpoint](std::string const& error) {
+                log::info("{} => {}", endpoint, error);
+                requestLocalStats(repoapi, meta);
+            });
+}
+void requestStats(std::string repoapi, ModMetadata meta) {
+    auto endpoint = repoapi + "/releases/tags/" + meta.getVersion().toString();
+    log::info("{}({})", __FUNCTION__, endpoint);
+    web::AsyncWebRequest()
+        .userAgent("extended-mod-info-pop")
+        .header("Authorization", AUTH_HEADER_DATA)
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .fetch(endpoint)
+        .json()
+        .then([repoapi, meta](matjson::Value const& cattogirl) {
+                log::info("{}", __FUNCTION__);
+                setupStats(cattogirl, meta);
+            })
+        .expect([repoapi, meta](std::string const& error) {
+                log::warn("{}", error);
+                requestLatestStats(repoapi, meta);
+            });
+}
 
 #include <Geode/modify/FLAlertLayer.hpp>
 class $modify(FLAlertLayerExt, FLAlertLayer) {
@@ -159,76 +201,35 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         }
         return meta;
     }
-    void requestStats(std::string repoapi, ModMetadata meta) {
-        auto endpoint = repoapi + "/releases/tags/" + meta.getVersion().toString();
-        log::info("{}({})", __FUNCTION__, endpoint);
-        web::AsyncWebRequest()
-            .userAgent("extended-mod-info-pop")
-            .header("Authorization", AUTH_HEADER_DATA)
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .fetch(endpoint)
-            .json()
-            .then([this, repoapi, meta](matjson::Value const& cattogirl) {
-                    log::info("{}", __FUNCTION__);
-                    setupStats(cattogirl, meta);
-                })
-            .expect([this, repoapi, meta](std::string const& error) {
-                    log::warn("{}", error);
-                    requestLatestStats(this, repoapi, meta);
-                });
-    }
-    static void requestLatestStats(FLAlertLayerExt* __this, std::string repoapi, ModMetadata meta) {
-        if (!__this) return;
-        auto endpoint = repoapi + "/releases/latest";
-        log::info("{}({})", __FUNCTION__, endpoint);
-        web::AsyncWebRequest()
-            .userAgent("extended-mod-info-pop")
-            .header("Authorization", AUTH_HEADER_DATA)
-            .body("{\"access_token\": \"" + ACCESS_TOKEN + "\"}")
-            .fetch(endpoint)
-            .json()
-            .then([__this, repoapi, meta](matjson::Value const& cattogirl) {
-                    log::info("{}", __FUNCTION__);
-                    setupStats(cattogirl, meta);
-                })
-            .expect([__this, repoapi, meta, endpoint](std::string const& error) {
-                    log::info("{} => {}", endpoint, error);
-                    requestLocalStats(__this, repoapi, meta);
-                });
-    }
-    static void requestLocalStats(FLAlertLayerExt* __this, std::string repoapi, ModMetadata meta) {
-        if (!__this) return;
-        log::info("{}...", __FUNCTION__);
-        std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
-        if (!json.good()) return log::warn("{}", "cant get locally saved release data");
-        setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta);
-    }
     void updateStats(float) {
         if (!typeinfo_cast<ModInfoPopup*>(this)) return;
+        //nodes
+        auto statsContainerMenu = dynamic_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
+        auto download_count = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("download_count"));
+        auto size = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("size"));
+        auto published_at = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("published_at"));
+        auto webBtn = dynamic_cast<CCMenuItemSpriteExtra*>(this->getChildByIDRecursive("webBtn"));
+        if (!statsContainerMenu) return;
+        if (!download_count) return;
+        if (!size) return;
+        if (!published_at) return;
+        if (!webBtn) return;
+        //webBtn
+        webBtn->setVisible(Index::get()->isKnownItem(getModMeta().getID(), getModMeta().getVersion()));
         //json
         matjson::Value json = "{}";
         for (auto asd : releases) {
             if (asd->m_modID == getModMeta().getID()) json = asd->m_json;
         }
         if (!json.contains("assets")) return;
-        //nodes
-        auto statsContainerMenu = dynamic_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
-        auto download_count = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("download_count"));
-        auto size = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("size"));
-        auto published_at = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("published_at"));
-        if(!statsContainerMenu) return;
-        if(!download_count) return;
-        if(!size) return;
-        if(!published_at) return;
         //setup labels
         download_count->setString(abbreviateNumber(json["assets"][0]["download_count"].as_int()).c_str());
         size->setString(convertSize(json["assets"][0]["size"].as_int()).c_str());
         published_at->setString(formatData(json["assets"][0]["updated_at"].as_string()).c_str());
         statsContainerMenu->updateLayout();
-
     }
     void openWebPage(CCObject*) {
-        auto meta = this->getModMeta();
+        auto meta = getModMeta();
         CCApplication::sharedApplication()->openURL(
             std::string("https://geode-sdk.org/mods/" + meta.getID()).data()
         );
@@ -237,7 +238,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         //ModInfoPopup
         ModInfoPopup* aModInfoPopup = typeinfo_cast<ModInfoPopup*>(this);
         if (aModInfoPopup) {
-            auto meta = this->getModMeta();
+            auto meta = getModMeta();
             //makeupthegitrepolink
             {
                 std::string repo = meta.getRepository()
@@ -252,10 +253,10 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     "https://api.github.com/repos/"
                 );
                 generateAuthorizationData();
-                this->requestStats(repoapi, meta);
+                requestStats(repoapi, meta);
             };
             //add official stuff
-            if (Index::get()->isKnownItem(meta.getID(), meta.getVersion())) {
+            {
                 //webBtn.png
                 auto webBtn = CCMenuItemSpriteExtra::create(
                     CCSprite::create("webBtn.png"_spr),
@@ -263,9 +264,9 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 );
                 this->m_buttonMenu->addChild(webBtn);
                 webBtn->setID("webBtn");
-                webBtn->setPosition(22.f, 188.f);
-                webBtn->setScale(0.75f);
-                webBtn->m_baseScale = (0.75f);
+                webBtn->setPosition(26.f, 180.f);
+                webBtn->setScale(0.9f);
+                webBtn->m_baseScale = webBtn->getScale();
             };
             //statsContainerMenu
             {
@@ -273,7 +274,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 this->m_buttonMenu->addChild(statsContainerMenu, 0, 562);
                 statsContainerMenu->setID("statsContainerMenu");
                 statsContainerMenu->setAnchorPoint({ 0.f, 0.0f });
-                statsContainerMenu->setPosition({ 50.f, 196.f });
+                statsContainerMenu->setPosition({ 52.f, 196.f });
                 statsContainerMenu->setScale(0.7f);
                 statsContainerMenu->setLayout(
                     RowLayout::create()
@@ -333,6 +334,27 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
     }
 };
 
-$execute{
+/*void setupStatsForAllIndex() {
+    log::info("{}", __FUNCTION__);
+    std::vector<IndexItemHandle> vLatestItems = Index::get()->getLatestItems();
+    for (auto catgirl : vLatestItems) {
+        auto meta = catgirl->getMetadata();
+        std::string repo = meta.getRepository()
+            .value_or(fmt::format(
+                "https://github.com/{}/{}",
+                meta.getDeveloper(),
+                meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
+            ));
+        std::string repoapi = std::regex_replace(
+            repo,
+            std::regex("https://github.com/"),
+            "https://api.github.com/repos/"
+        );
+        generateAuthorizationData();
+        requestStats(repoapi, meta);
+    }
+}*/
+
+$on_mod(Loaded) {
     generateAuthorizationData();
 }
