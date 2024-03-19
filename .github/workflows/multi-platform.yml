@@ -55,6 +55,8 @@ jobs:
     needs: ['build']
     steps:
       - uses: geode-sdk/build-geode-mod/combine@main
+        with: 
+          delete-artifacts: false
         id: build
       - uses: softprops/action-gh-release@v2
         name: "Release With Dev Tag"
