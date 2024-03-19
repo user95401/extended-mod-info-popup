@@ -230,6 +230,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         log::info("{}...", __FUNCTION__);
         auto meta = getModMeta();
         std::ifstream jsonfile((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
+        if (!std::ifstream(jsonfile().c_str()).good()) return log::warn("cant get the {}", jsonfile);
         std::stringstream json;
         json<<jsonfile.rdbuf(); 
         this->setupStats(matjson::parse(json.str()));
