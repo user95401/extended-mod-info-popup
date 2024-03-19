@@ -55,10 +55,8 @@ jobs:
     needs: ['package']
       
     steps:
-        - uses: softprops/action-gh-release@v1
-          with:
-            files: |
-              ${{ steps.build.outputs.build-output }}
-          env:
-            GITHUB_TOKEN: ${{ secrets.token }}
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ steps.build.outputs.build-output }}
           
