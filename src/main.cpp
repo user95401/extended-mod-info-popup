@@ -103,7 +103,6 @@ public:
     Scrollbar* m_scrollbar;
     IndexItemHandle m_item;
 };
-
 class LocalModInfoPopup : public ModInfoPopup, public FLAlertLayerProtocol {
 public:
     EventListener<ModInstallFilter> m_installListener;
@@ -116,10 +115,11 @@ public:
 
 #include <regex>
 #include <Geode/modify/FLAlertLayer.hpp>
+#define isBad(node) bool(!node)
+#define isGood(node) bool(node)
 class $modify(FLAlertLayerExt, FLAlertLayer) {
     ModMetadata getModMeta() {
-        ModInfoPopup* aModInfoPopup = typeinfo_cast<ModInfoPopup*>(this);
-        if (!aModInfoPopup) return geode::getMod()->getMetadata();
+        if (isBad(this)) return geode::getMod()->getMetadata();
         //variants
         LocalModInfoPopup* aLocalModInfoPopup = typeinfo_cast<LocalModInfoPopup*>(this);
         IndexItemInfoPopup* aIndexItemInfoPopup = typeinfo_cast<IndexItemInfoPopup*>(this);
@@ -134,12 +134,14 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         return meta;
     }
     void setupStats(matjson::Value const& cattogirl) {
-        if (!this) return;
+        if (isBad(this)) return;
+        log::info("{}", __FUNCTION__);
         auto meta = getModMeta();
         ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
         std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
-        CCMenu* statsContainerMenu = typeinfo_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
-        if (!statsContainerMenu) return;
+        CCMenu* statsContainerMenu = (isBad(this)) ?
+            nullptr :
+            typeinfo_cast<CCMenu*>(this->getChildByIDRecursive("statsContainerMenu"));
         //download_count
         {
             auto download_count = CCLabelTTF::create(
@@ -185,7 +187,6 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         if (statsContainerMenu) statsContainerMenu->updateLayout();
     }
     void requestStats(std::string repoapi, ModMetadata meta) {
-        if (!this) return;
         auto endpoint = repoapi + "/releases/tags/" + meta.getVersion().toString();
         log::info("{}({})", __FUNCTION__, endpoint);
         web::AsyncWebRequest()
@@ -195,17 +196,16 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .fetch(endpoint)
             .json()
             .then([this](matjson::Value const& cattogirl) {
-                    if (!this) return;
+                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
                     this->setupStats(cattogirl);
                 })
             .expect([this, repoapi, meta](std::string const& error) {
-                    if (!this) return;
+                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
                     log::warn("{}", error);
                     this->requestLatestStats(repoapi);
                 });
     }
     void requestLatestStats(std::string repoapi) {
-        if (!this) return;
         auto endpoint = repoapi + "/releases/latest";
         log::info("{}({})", __FUNCTION__, endpoint);
         web::AsyncWebRequest()
@@ -215,35 +215,32 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .fetch(endpoint)
             .json()
             .then([this](matjson::Value const& cattogirl) {
-                    if (!this) return;
+                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
                     //log::info(__FUNCTION__" {}", cattogirl.dump());
                     this->setupStats(cattogirl);
                 })
             .expect([this, endpoint](std::string const& error) {
-                    if (!this) return;
+                    if (isBad(this)) return; log::info("{}", __FUNCTION__);
                     log::info("{} => {}", endpoint, error);
                     this->requestLocalStats();
                 });
     }
     void requestLocalStats() {
-        if (!this) return;
         log::info("{}...", __FUNCTION__);
         auto meta = getModMeta();
-        std::ifstream jsonfile((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
-        if (!jsonfile.good()) return log::warn("{}", "cant get localy saved release data");
-        std::stringstream json;
-        json<<jsonfile.rdbuf(); 
-        this->setupStats(matjson::parse(json.str()));
+        std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
+        if (!json.good()) return log::warn("{}", "cant get locally saved release data");
+        if (isGood(this)) this->setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()));
     }
     void openWebPage(CCObject*) {
-        auto meta = getModMeta();
+        auto meta = this->getModMeta();
         CCApplication::sharedApplication()->openURL(
             std::string("https://geode-sdk.org/mods/" + meta.getID()).data()
         );
     }
     void tryCustomSetup(float) {
         if (!typeinfo_cast<ModInfoPopup*>(this)) return;
-        auto meta = getModMeta();
+        auto meta = this->getModMeta();
         //makeupthegitrepolink
         {
             std::string repo = meta.getRepository()
@@ -258,7 +255,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 "https://api.github.com/repos/"
             );
             generateAuthorizationData();
-            requestStats(repoapi, meta);
+            this->requestStats(repoapi, meta);
         };
         //add official stuff
         if (Index::get()->isKnownItem(meta.getID(), meta.getVersion())) {
