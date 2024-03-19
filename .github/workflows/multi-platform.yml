@@ -60,5 +60,5 @@ jobs:
             files: |
               ${{ steps.build.outputs.build-output }}
           env:
-            GITHUB_TOKEN: ${{ secrets.TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.token }}
           
