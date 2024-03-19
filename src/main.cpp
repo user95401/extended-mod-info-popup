@@ -171,8 +171,14 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             size->getChildByTag(521)->setScale(0.6f);
         };
         {
+            std::string str = cattogirl["assets"][0]["updated_at"].as_string();//2024-03-04T14:46:27Z
+            //(T n' Z)'s
+            str = std::regex_replace(str, std::regex("[TZ]+"), " ");
+            //- => .
+            str = std::regex_replace(str, std::regex("[-]+"), ".");
+            //label
             auto published_at = CCLabelTTF::create(
-                cattogirl["assets"][0]["updated_at"].as_string().data(),
+                str.data(),
                 "arial",
                 12.f
             );
