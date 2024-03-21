@@ -228,6 +228,28 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         published_at->setString(formatData(json["assets"][0]["updated_at"].as_string()).c_str());
         statsContainerMenu->updateLayout();
     }
+    std::string gitrepolnk() {
+        auto meta = getModMeta();
+        return meta.getRepository()
+                    .value_or(fmt::format(
+                        "https://github.com/{}/{}",
+                        meta.getDeveloper(),
+                        meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
+                    ));
+};
+    void downloadLatest(CCObject*) {
+        auto meta = getModMeta();
+        auto linker = fmt::format(
+         "{}/releases/latest/download/"
+         "{}.geode"
+         ,
+         gitrepolnk(), 
+         meta.getID()
+        );
+        CCApplication::sharedApplication()->openURL(
+            linker.data()
+        );
+    }
     void openWebPage(CCObject*) {
         auto meta = getModMeta();
         CCApplication::sharedApplication()->openURL(
@@ -241,12 +263,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             auto meta = getModMeta();
             //makeupthegitrepolink
             {
-                std::string repo = meta.getRepository()
-                    .value_or(fmt::format(
-                        "https://github.com/{}/{}",
-                        meta.getDeveloper(),
-                        meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
-                    ));
+                std::string repo = gitrepolnk();
                 std::string repoapi = std::regex_replace(
                     repo,
                     std::regex("https://github.com/"),
