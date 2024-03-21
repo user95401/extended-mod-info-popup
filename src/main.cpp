@@ -300,16 +300,16 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             };
             //sus
             {
-                //sRecentIcon_001.png
-                auto sRecentIcon_001 = CCMenuItemSpriteExtra::create(
-                    CCSprite::createWithSpriteFrameName("sRecentIcon_001.png"),
+                //GJ_sRecentIcon_001
+                auto GJ_sRecentIcon_001 = CCMenuItemSpriteExtra::create(
+                    CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"),
                     this, menu_selector(FLAlertLayerExt::downloadLatest)
                 );
-                this->m_buttonMenu->addChild(sRecentIcon_001);
-                sRecentIcon_001->setID("sRecentIcon_001");
-                sRecentIcon_001->setPosition(26.f, 220.f);
-                sRecentIcon_001->setScale(0.9f);
-                sRecentIcon_001->m_baseScale = sRecentIcon_001->getScale();
+                this->m_buttonMenu->addChild(GJ_sRecentIcon_001);
+                GJ_sRecentIcon_001->setID("GJ_sRecentIcon_001");
+                GJ_sRecentIcon_001->setPosition(26.f, 220.f);
+                GJ_sRecentIcon_001->setScale(0.9f);
+                GJ_sRecentIcon_001->m_baseScale = GJ_sRecentIcon_001->getScale();
             };
             //statsContainerMenu
             {
