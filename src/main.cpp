@@ -285,6 +285,18 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 webBtn->setScale(0.9f);
                 webBtn->m_baseScale = webBtn->getScale();
             };
+            //sus
+            {
+                //webBtn.png
+                auto webBtn = CCMenuItemSpriteExtra::create(
+                    CCSprite::create("webBtn.png"_spr),
+                    this, menu_selector(FLAlertLayerExt::downloadLatest)
+                );
+                this->m_buttonMenu->addChild(webBtn);
+                webBtn->setPosition(26.f, 220.f);
+                webBtn->setScale(0.9f);
+                webBtn->m_baseScale = webBtn->getScale();
+            };
             //statsContainerMenu
             {
                 CCMenu* statsContainerMenu = CCMenu::create();
