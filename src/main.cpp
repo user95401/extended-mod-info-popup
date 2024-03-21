@@ -250,16 +250,16 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .fetch(linker)
             .bytes()
             .then([meta](ByteVector& catgirl) {
-                        auto path = geode::dirs::getModsDir() / meta.getID() + ".geode";
-                        std::ofstream outfile(path.string().data(), std::ios::binary);
-                        for (auto atom : catgirl) {
-                            outfile << atom;
-                        }
-                        outfile.close();
-                        Notification::create("Download finished", NotificationIcon::Success)->show();
+                    auto path = geode::dirs::getModsDir() / meta.getID() + ".geode";
+                    std::ofstream outfile(path.string().data(), std::ios::binary);
+                    for (auto atom : catgirl) {
+                        outfile << atom;
+                    }
+                    outfile.close();
+                    Notification::create("Download finished", NotificationIcon::Success)->show();
                 })
             .expect([](std::string const& error) {
-                    Notification::create("Downloading failed", NotificationIcon::Error)->show()
+                    Notification::create("Downloading failed", NotificationIcon::Error)->show();
             });
     }
     void openWebPage(CCObject*) {
