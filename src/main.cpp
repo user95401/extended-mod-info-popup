@@ -302,7 +302,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             {
                 //sRecentIcon_001.png
                 auto sRecentIcon_001 = CCMenuItemSpriteExtra::create(
-                    CCSprite::create("sRecentIcon_001.png"),
+                    CCSprite::createWithSpriteFrameName("sRecentIcon_001.png"),
                     this, menu_selector(FLAlertLayerExt::downloadLatest)
                 );
                 this->m_buttonMenu->addChild(sRecentIcon_001);
