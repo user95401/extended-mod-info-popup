@@ -259,9 +259,8 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                         Notification::create("Download finished", NotificationIcon::Success)->show();
                 })
             .expect([](std::string const& error) {
-                    Notification::create("Downloading failed", NotificationIcon::Error)->show();
-                    };
-                );
+                    Notification::create("Downloading failed", NotificationIcon::Error)->show()
+            });
     }
     void openWebPage(CCObject*) {
         auto meta = getModMeta();
