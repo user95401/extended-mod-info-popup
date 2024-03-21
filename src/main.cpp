@@ -246,6 +246,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
          gitrepolnk(), 
          meta.getID()
         );
+        Notification::create("Downloading...", NotificationIcon::Loading)->show();
         web::AsyncWebRequest()
             .fetch(linker)
             .bytes()
@@ -299,15 +300,16 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             };
             //sus
             {
-                //webBtn.png
-                auto webBtn = CCMenuItemSpriteExtra::create(
-                    CCSprite::create("webBtn.png"_spr),
+                //sRecentIcon_001.png
+                auto sRecentIcon_001 = CCMenuItemSpriteExtra::create(
+                    CCSprite::create("sRecentIcon_001.png"),
                     this, menu_selector(FLAlertLayerExt::downloadLatest)
                 );
-                this->m_buttonMenu->addChild(webBtn);
-                webBtn->setPosition(26.f, 220.f);
-                webBtn->setScale(0.9f);
-                webBtn->m_baseScale = webBtn->getScale();
+                this->m_buttonMenu->addChild(sRecentIcon_001);
+                webBtn->setID("sRecentIcon_001"_spr);
+                sRecentIcon_001->setPosition(26.f, 220.f);
+                sRecentIcon_001->setScale(0.9f);
+                sRecentIcon_001->m_baseScale = sRecentIcon_001->getScale();
             };
             //statsContainerMenu
             {
