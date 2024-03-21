@@ -306,7 +306,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     this, menu_selector(FLAlertLayerExt::downloadLatest)
                 );
                 this->m_buttonMenu->addChild(sRecentIcon_001);
-                webBtn->setID("sRecentIcon_001"_spr);
+                sRecentIcon_001->setID("sRecentIcon_001");
                 sRecentIcon_001->setPosition(26.f, 220.f);
                 sRecentIcon_001->setScale(0.9f);
                 sRecentIcon_001->m_baseScale = sRecentIcon_001->getScale();
