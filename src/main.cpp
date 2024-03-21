@@ -258,6 +258,14 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     }
                     outfile.close();
                     Notification::create("Download finished", NotificationIcon::Success)->show();
+                    geode::createQuickPopup(
+                        "Restart Game",
+                        "Restart game to load new mod?",
+                        "Later", "Yes",
+                        [](auto, bool btn2) {
+                            if (btn2) utils::game::restart();
+                        }
+                    );
                 })
             .expect([](std::string const& error) {
                     Notification::create("Downloading failed", NotificationIcon::Error)->show();
