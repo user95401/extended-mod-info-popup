@@ -250,7 +250,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             .fetch(linker)
             .bytes()
             .then([meta](ByteVector& catgirl) {
-                    auto path = geode::dirs::getModsDir() / meta.getID() + ".geode";
+                    auto path = geode::dirs::getModsDir() / (meta.getID() + ".geode");
                     std::ofstream outfile(path.string().data(), std::ios::binary);
                     for (auto atom : catgirl) {
                         outfile << atom;
