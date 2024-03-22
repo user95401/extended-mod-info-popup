@@ -277,6 +277,17 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             std::string("https://geode-sdk.org/mods/" + meta.getID()).data()
         );
     }
+    void comments(CCObject*) {
+        std::string repo = gitrepolnk();
+        std::string repoapi = std::regex_replace(
+         repo,
+         std::regex("https://github.com/"),
+         "https://ungh.cc/repos/"
+        );
+        auto res = web::fetchJSON();
+        auto json = res.value();
+        log::info("", json["id"].as_int());
+    }
     virtual void show() {
         //ModInfoPopup
         ModInfoPopup* aModInfoPopup = typeinfo_cast<ModInfoPopup*>(this);
@@ -316,6 +327,19 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 this->m_buttonMenu->addChild(GJ_sRecentIcon_001);
                 GJ_sRecentIcon_001->setID("GJ_sRecentIcon_001");
                 GJ_sRecentIcon_001->setPosition(26.f, 220.f);
+                GJ_sRecentIcon_001->setScale(0.9f);
+                GJ_sRecentIcon_001->m_baseScale = GJ_sRecentIcon_001->getScale();
+            };
+            //sus
+            {
+                //GJ_sRecentIcon_001
+                auto GJ_sRecentIcon_001 = CCMenuItemSpriteExtra::create(
+                    CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"),
+                    this, menu_selector(FLAlertLayerExt::comments)
+                );
+                this->m_buttonMenu->addChild(GJ_sRecentIcon_001);
+                GJ_sRecentIcon_001->setID("gg");
+                GJ_sRecentIcon_001->setPosition(26.f, 290.f);
                 GJ_sRecentIcon_001->setScale(0.9f);
                 GJ_sRecentIcon_001->m_baseScale = GJ_sRecentIcon_001->getScale();
             };
