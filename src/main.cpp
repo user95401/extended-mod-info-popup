@@ -196,7 +196,7 @@ void requestStats(std::string repoapi, ModMetadata meta) {
         .then([repoapi, meta](auto cattogirl) {
                 log::info("{}", __FUNCTION__);
                 if (cattogirl.contains("releases")) {
-                    //Лапы к самиздату тянут магистраты и Дяди Стёпы
+                    //пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
                     for (auto asd : cattogirl["releases"].as_array()) {
                         //log::debug("{}", asd.dump());
                         if (asd["tag"].as_string() == meta.getVersion().toString()) {
@@ -256,8 +256,12 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         if (!latestRelease) return;
         if (!webBtn) return;
         if (!downloadLatest) return;
+        auto pIndexItemHandle = Index::get()->getItem(getModMeta());
         auto isKnownItem = Index::get()->isKnownItem(getModMeta().getID(), getModMeta().getVersion());
-        auto isUpdateAvailable = isKnownItem ? Index::get()->isUpdateAvailable(Index::get()->getItem(getModMeta())) : false;
+        auto isUpdateAvailable = 
+        isKnownItem ? 
+        Index::get()->getMajorItem(getModMeta().getID()) == pIndexItemHandle 
+        : false;
         bool onLocalPopup = typeinfo_cast<LocalModInfoPopup*>(this);
         //Btns
         webBtn->setVisible(isKnownItem);
