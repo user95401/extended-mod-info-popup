@@ -260,7 +260,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         auto isKnownItem = Index::get()->isKnownItem(getModMeta().getID(), getModMeta().getVersion());
         auto isUpdateAvailable = 
         isKnownItem ? 
-        Index::get()->getMajorItem(getModMeta().getID()) == pIndexItemHandle 
+        Index::get()->getMajorItem(getModMeta().getID()) != pIndexItemHandle 
         : false;
         bool onLocalPopup = typeinfo_cast<LocalModInfoPopup*>(this);
         //Btns
