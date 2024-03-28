@@ -45,6 +45,12 @@ std::string formatData(std::string str) {
     return str;
 }
 
+#define ghapiauth \
+.userAgent(AUTH_DATA["name"].as_string() + ":" + AUTH_DATA["address"].as_string()) \
+.header("Accept", "application/vnd.github+json") \
+.header("X-GitHub-Api-Version", "2022-11-28") \
+.body("{\"access_token\": \"" + ACCESS_TOKEN + "\"}") \
+
 matjson::Value AUTH_DATA;
 std::string AUTH_HEADER_DATA;
 std::string ACCESS_TOKEN;
@@ -135,30 +141,43 @@ public:
     }
 };
 std::vector<ReleaseData*> releases;
-void setupStats(matjson::Value const& cattogirl, ModMetadata meta) {
+std::vector<ReleaseData*> latestReleases;
+void setupStats(matjson::Value const& cattogirl, ModMetadata meta, bool isLatest = false) {
     log::info("{}", __FUNCTION__);
-    ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
-    std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
-    releases.push_back(ReleaseData::create(cattogirl, meta.getID()));
+    if (isLatest) {
+        ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
+        std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + "-latest.json")).string()) << cattogirl.dump();
+        latestReleases.push_back(ReleaseData::create(cattogirl, meta.getID()));
+    }
+    else {
+        ghc::filesystem::create_directories(geode::dirs::getIndexDir() / "releases");
+        std::ofstream((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string()) << cattogirl.dump();
+        releases.push_back(ReleaseData::create(cattogirl, meta.getID()));
+    }
 }
 void requestLocalStats(std::string repoapi, ModMetadata meta) {
     log::info("{}...", __FUNCTION__);
-    std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
-    if (!json.good()) return log::warn("{}", "cant get locally saved release data");
-    setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta);
+    {
+        std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + ".json")).string());
+        if (!json.good()) return log::warn("{}", "cant get locally saved release data");
+        setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta);
+    };
+    {
+        std::ifstream json((geode::dirs::getIndexDir() / "releases" / (meta.getID() + "-latest.json")).string());
+        if (!json.good()) return log::warn("{}", "cant get locally saved latest release data");
+        setupStats(matjson::parse((std::stringstream() << json.rdbuf()).str()), meta, true);
+    };
 }
-void requestLatestStats(std::string repoapi, ModMetadata meta) {
+void requestLatestStats(std::string repoapi, ModMetadata meta, bool saveOnly = false) {
     auto endpoint = repoapi + "/releases/latest";
     log::info("{}({})", __FUNCTION__, endpoint);
     web::AsyncWebRequest()
-        .userAgent("extended-mod-info-pop")
-        .header("Authorization", AUTH_HEADER_DATA)
-        .body("{\"access_token\": \"" + ACCESS_TOKEN + "\"}")
+        ghapiauth
         .fetch(endpoint)
         .json()
-        .then([repoapi, meta](matjson::Value const& cattogirl) {
+        .then([repoapi, meta, saveOnly](matjson::Value const& cattogirl) {
                 log::info("{}", __FUNCTION__);
-                setupStats(cattogirl, meta);
+                setupStats(cattogirl, meta, saveOnly);
             })
         .expect([repoapi, meta, endpoint](std::string const& error) {
                 log::info("{} => {}", endpoint, error);
@@ -166,21 +185,40 @@ void requestLatestStats(std::string repoapi, ModMetadata meta) {
             });
 }
 void requestStats(std::string repoapi, ModMetadata meta) {
+    requestLocalStats(repoapi, meta);//setup local save instantly and then it got updated later
     auto endpoint = repoapi + "/releases/tags/" + meta.getVersion().toString();
+    if (repoapi.find("ungh.cc") != std::string::npos) endpoint = repoapi + "/releases";
     log::info("{}({})", __FUNCTION__, endpoint);
     web::AsyncWebRequest()
-        .userAgent("extended-mod-info-pop")
-        .header("Authorization", AUTH_HEADER_DATA)
-        .header("X-GitHub-Api-Version", "2022-11-28")
+        ghapiauth
         .fetch(endpoint)
         .json()
-        .then([repoapi, meta](matjson::Value const& cattogirl) {
+        .then([repoapi, meta](auto cattogirl) {
                 log::info("{}", __FUNCTION__);
-                setupStats(cattogirl, meta);
+                if (cattogirl.contains("releases")) {
+                    //Лапы к самиздату тянут магистраты и Дяди Стёпы
+                    for (auto asd : cattogirl["releases"].as_array()) {
+                        //log::debug("{}", asd.dump());
+                        if (asd["tag"].as_string() == meta.getVersion().toString()) {
+                            setupStats(matjson::parse("{\"release\": " + asd.dump() + "}"), meta);
+                            requestLatestStats(repoapi, meta, true);
+                            return;
+                        }
+                    };
+                    if (cattogirl["releases"].as_array().size() != 0) {
+                        setupStats(matjson::parse("{\"release\": " + cattogirl["releases"].as_array()[0].dump() + "}"), meta);
+                        requestLatestStats(repoapi, meta, true);
+                    }
+                }
+                else {
+                    setupStats(cattogirl, meta);
+                    requestLatestStats(repoapi, meta, true);
+                };
             })
         .expect([repoapi, meta](std::string const& error) {
                 log::warn("{}", error);
                 requestLatestStats(repoapi, meta);
+                requestLatestStats(repoapi, meta, true);
             });
 }
 
@@ -208,35 +246,114 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         auto download_count = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("download_count"));
         auto size = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("size"));
         auto published_at = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("published_at"));
+        auto latestRelease = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("latestRelease"));
         auto webBtn = dynamic_cast<CCMenuItemSpriteExtra*>(this->getChildByIDRecursive("webBtn"));
+        auto downloadLatest = dynamic_cast<CCMenuItemSpriteExtra*>(this->getChildByIDRecursive("downloadLatest"));
         if (!statsContainerMenu) return;
         if (!download_count) return;
         if (!size) return;
         if (!published_at) return;
+        if (!latestRelease) return;
         if (!webBtn) return;
-        //webBtn
-        webBtn->setVisible(Index::get()->isKnownItem(getModMeta().getID(), getModMeta().getVersion()));
+        if (!downloadLatest) return;
+        auto isKnownItem = Index::get()->isKnownItem(getModMeta().getID(), getModMeta().getVersion());
+        auto isUpdateAvailable = isKnownItem ? Index::get()->isUpdateAvailable(Index::get()->getItem(getModMeta())) : false;
+        bool onLocalPopup = typeinfo_cast<LocalModInfoPopup*>(this);
+        //Btns
+        webBtn->setVisible(isKnownItem);
+        downloadLatest->setVisible(!isUpdateAvailable and onLocalPopup);
         //json
-        matjson::Value json = "{}";
+        matjson::Value releaseJson = "{}";
         for (auto asd : releases) {
-            if (asd->m_modID == getModMeta().getID()) json = asd->m_json;
+            if (asd->m_modID == getModMeta().getID()) releaseJson = asd->m_json;
         }
-        if (!json.contains("assets")) return;
-        //setup labels
-        download_count->setString(abbreviateNumber(json["assets"][0]["download_count"].as_int()).c_str());
-        size->setString(convertSize(json["assets"][0]["size"].as_int()).c_str());
-        published_at->setString(formatData(json["assets"][0]["updated_at"].as_string()).c_str());
-        statsContainerMenu->updateLayout();
+        if (releaseJson.contains("assets")) {
+            //setup labels
+            download_count->setString(abbreviateNumber(releaseJson["assets"][0]["download_count"].as_int()).c_str());
+            size->setString(convertSize(releaseJson["assets"][0]["size"].as_int()).c_str());
+            published_at->setString(formatData(releaseJson["assets"][0]["updated_at"].as_string()).c_str());
+            statsContainerMenu->updateLayout();
+            statsContainerMenu->setVisible(true);
+        }
+        else if (releaseJson.contains("release")) {
+            //setup labels
+            published_at->setString(formatData(releaseJson["release"]["publishedAt"].as_string()).c_str());
+            statsContainerMenu->updateLayout();
+            statsContainerMenu->setVisible(true);
+        }
+        else return statsContainerMenu->setVisible(false);
+        //latestReleases
+        /**/matjson::Value latestReleaseJson = "{}";
+        for (auto asd : latestReleases) {
+            if (asd->m_modID == getModMeta().getID()) latestReleaseJson = asd->m_json;
+        }
+        if (latestReleaseJson.contains("assets")) {
+            //setup labels
+            latestRelease->setString(latestReleaseJson["tag_name"].as_string().c_str());
+        }
+        else if (latestReleaseJson.contains("release")) {
+            //setup labels
+            latestRelease->setString(latestReleaseJson["release"]["tag"].as_string().c_str());
+        }
     }
     std::string gitrepolnk() {
         auto meta = getModMeta();
         return meta.getRepository()
-                    .value_or(fmt::format(
-                        "https://github.com/{}/{}",
-                        meta.getDeveloper(),
-                        meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
-                    ));
-};
+            .value_or(fmt::format(
+                "https://github.com/{}/{}",
+                meta.getDeveloper(),
+                meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
+            ));
+    };
+    void downloadLatestPopup(CCObject*) {
+        auto meta = getModMeta();
+        //link
+        auto linker = fmt::format(
+            "{}/releases/latest/download/"
+            "{}.geode"
+            ,
+            gitrepolnk(),
+            meta.getID()
+        );
+        //oldtag => tartag
+        auto latestRelease = dynamic_cast<CCLabelTTF*>(this->getChildByIDRecursive("latestRelease"));
+        std::string updprev = fmt::format("\n<cg>Version:</c>\n{} => {}", meta.getVersion().toString(), latestRelease->getString());
+        //moreinfo
+        std::stringstream moreinfo;
+        //releaseJson
+        matjson::Value releaseJson = "{}";
+        for (auto asd : releases) if (asd->m_modID == getModMeta().getID()) releaseJson = asd->m_json;
+        //latestReleaseJson
+        matjson::Value latestReleaseJson = "{}";
+        for (auto asd : latestReleases) if (asd->m_modID == getModMeta().getID()) latestReleaseJson = asd->m_json;
+        //fill the moreinfo if latestReleaseJson and releaseJson is gooood
+        if (latestReleaseJson.contains("assets") and releaseJson.contains("assets")) {
+            auto assetdata1 = releaseJson["assets"][0];
+            auto assetdata2 = latestReleaseJson["assets"][0];
+            moreinfo << "\n<cy>Updated at:</c>\n"
+                << formatData(assetdata1["updated_at"].as_string()) << "=> " << formatData(assetdata2["updated_at"].as_string()) << "";
+            moreinfo << "\n<co>Size:</c>\n" << convertSize(assetdata1["size"].as_int()) << " => " << convertSize(assetdata2["size"].as_int()) << "";
+            //updated_at
+        }
+        else if (latestReleaseJson.contains("release") and releaseJson.contains("release")) {
+            auto assetdata1 = releaseJson["release"];
+            auto assetdata2 = latestReleaseJson["release"];
+            moreinfo << "\n<cy>Updated at:</c>\n"
+                << formatData(assetdata1["publishedAt"].as_string()) << "=> " << formatData(assetdata2["publishedAt"].as_string()) << "";
+        }
+        auto pop = geode::createQuickPopup(
+            "Update to latest",
+            "Download <cg>last release</c> of <cy>this mod</c>?"
+            "\n<cj>" + linker + "</c>"
+            + updprev
+            + moreinfo.str(),
+            "Abort", "Yes",
+            430.f,
+            [this](auto, bool btn2) {
+                if (btn2) this->downloadLatest(this);
+            }
+        );
+    }
     void downloadLatest(CCObject*) {
         auto meta = getModMeta();
         auto linker = fmt::format(
@@ -246,7 +363,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
          gitrepolnk(), 
          meta.getID()
         );
-        Notification::create("Downloading...", NotificationIcon::Loading)->show();
+        Notification::create("Downloading...", NotificationIcon::Loading, 3.f)->show();
         web::AsyncWebRequest()
             .fetch(linker)
             .bytes()
@@ -257,7 +374,6 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                         outfile << atom;
                     }
                     outfile.close();
-                    Notification::create("Download finished", NotificationIcon::Success)->show();
                     geode::createQuickPopup(
                         "Restart Game",
                         "Restart game to load new mod?",
@@ -266,9 +382,10 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                             if (btn2) utils::game::restart();
                         }
                     );
+                    Notification::create("Download finished", NotificationIcon::Success, 5.0f)->show();
                 })
             .expect([](std::string const& error) {
-                    Notification::create("Downloading failed", NotificationIcon::Error)->show();
+                    Notification::create("Downloading failed:\n" + error, NotificationIcon::Error, 5.0f)->show();
             });
     }
     void openWebPage(CCObject*) {
@@ -284,26 +401,32 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
          std::regex("https://github.com/"),
          "https://ungh.cc/repos/"
         );
-        auto res = web::fetchJSON();
+        log::info("{} <= {}", __FUNCTION__, repoapi);
+        auto res = web::fetchJSON(repoapi);
+        if (res.has_error()) 
+            return 
+            FLAlertLayer::create(nullptr, "Cant fetch API request!", ("<cr>" + res.error()).c_str(), "GOT THAT", nullptr)
+            ->show();
         auto json = res.value();
-        log::info("", json["id"].as_int());
+        log::info("{}", json["repo"]["id"].as_int());
+        auto id = json["repo"]["id"].as_int();
+        auto levelSkit = LevelTools::getLevel(id, 0);
+        levelSkit->m_levelID = id;
+        levelSkit->m_levelName = json["repo"]["name"].as_string();
+        levelSkit->m_creatorName = json["repo"]["repo"].as_string();
+        levelSkit->m_levelDesc = ZipUtils::base64URLEncode(json["repo"]["description"].as_string());
+        auto InfoLayerForMod = InfoLayer::create(levelSkit, nullptr, nullptr);
+        InfoLayerForMod->setID("InfoLayerForMod");
+        InfoLayerForMod->show();
     }
     virtual void show() {
         //ModInfoPopup
         ModInfoPopup* aModInfoPopup = typeinfo_cast<ModInfoPopup*>(this);
         if (aModInfoPopup) {
-            auto meta = getModMeta();
-            //makeupthegitrepolink
-            {
-                std::string repo = gitrepolnk();
-                std::string repoapi = std::regex_replace(
-                    repo,
-                    std::regex("https://github.com/"),
-                    "https://api.github.com/repos/"
-                );
-                generateAuthorizationData();
-                requestStats(repoapi, meta);
-            };
+            auto UNGH_API = Mod::get()->getSettingValue<bool>("UNGH_API");
+            auto api = UNGH_API ? "https://ungh.cc/repos/" : "https://api.github.com/repos/";
+            std::string repoapi = std::regex_replace(gitrepolnk(), std::regex("https://github.com/"), api);
+            requestStats(repoapi, getModMeta());
             //add official stuff
             {
                 //webBtn.png
@@ -319,29 +442,34 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             };
             //sus
             {
-                //GJ_sRecentIcon_001
-                auto GJ_sRecentIcon_001 = CCMenuItemSpriteExtra::create(
+                //downloadLatestBtnNode
+                auto hi = geode::AccountButtonSprite::create(
                     CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"),
-                    this, menu_selector(FLAlertLayerExt::downloadLatest)
+                    AccountBaseColor::Purple
                 );
-                this->m_buttonMenu->addChild(GJ_sRecentIcon_001);
-                GJ_sRecentIcon_001->setID("GJ_sRecentIcon_001");
-                GJ_sRecentIcon_001->setPosition(26.f, 220.f);
-                GJ_sRecentIcon_001->setScale(0.9f);
-                GJ_sRecentIcon_001->m_baseScale = GJ_sRecentIcon_001->getScale();
+                hi->setScale(0.55f);
+                typeinfo_cast<CCNode*>(hi->getChildren()->objectAtIndex(0))->setScale(1.8f);
+                //downloadLatestBtn
+                auto downloadLatest = CCMenuItemSpriteExtra::create(
+                    hi, this, menu_selector(FLAlertLayerExt::downloadLatestPopup)
+                );
+                this->m_buttonMenu->addChild(downloadLatest);
+                downloadLatest->setID("downloadLatest");
+                downloadLatest->setPosition(187.f, 220.f);
             };
             //sus
             {
-                //GJ_sRecentIcon_001
-                auto GJ_sRecentIcon_001 = CCMenuItemSpriteExtra::create(
+                //comments
+                auto comments = CCMenuItemSpriteExtra::create(
                     CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"),
                     this, menu_selector(FLAlertLayerExt::comments)
                 );
-                this->m_buttonMenu->addChild(GJ_sRecentIcon_001);
-                GJ_sRecentIcon_001->setID("gg");
-                GJ_sRecentIcon_001->setPosition(26.f, 290.f);
-                GJ_sRecentIcon_001->setScale(0.9f);
-                GJ_sRecentIcon_001->m_baseScale = GJ_sRecentIcon_001->getScale();
+                this->m_buttonMenu->addChild(comments);
+                comments->setID("comments");
+                comments->setPosition(26.f, 290.f);
+                comments->setScale(0.9f);
+                comments->m_baseScale = comments->getScale();
+                comments->setVisible(0);
             };
             //statsContainerMenu
             {
@@ -399,6 +527,20 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
                     published_at->getChildByTag(521)->setScale(0.6f);
                 };
+                {
+                    auto latestRelease = CCLabelTTF::create(
+                        "...",
+                        "arial",
+                        12.f
+                    );
+                    statsContainerMenu->addChild(latestRelease);
+                    latestRelease->setID("latestRelease");
+                    latestRelease->setAnchorPoint({ 0.f, 0.5f });
+                    latestRelease->setScale(1.65f);
+                    latestRelease->addChild(CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"), 0, 521);
+                    latestRelease->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
+                    latestRelease->getChildByTag(521)->setScale(1.0f);
+                };
                 statsContainerMenu->updateLayout();
             };
             //upd
@@ -409,26 +551,41 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
     }
 };
 
-/*void setupStatsForAllIndex() {
+auto setupedStatsForAllIndex = false;
+void setupStatsForAllIndex() {
     log::info("{}", __FUNCTION__);
+    if (setupedStatsForAllIndex) return;
+    else setupedStatsForAllIndex = true;
     std::vector<IndexItemHandle> vLatestItems = Index::get()->getLatestItems();
     for (auto catgirl : vLatestItems) {
         auto meta = catgirl->getMetadata();
+        log::info("{} ... {}", __FUNCTION__, meta.getName());
         std::string repo = meta.getRepository()
             .value_or(fmt::format(
                 "https://github.com/{}/{}",
                 meta.getDeveloper(),
                 meta.getID().replace(0, meta.getDeveloper().size() + 1, "")
             ));
-        std::string repoapi = std::regex_replace(
-            repo,
-            std::regex("https://github.com/"),
-            "https://api.github.com/repos/"
-        );
-        generateAuthorizationData();
+        auto UNGH_API = Mod::get()->getSettingValue<bool>("UNGH_API");
+        auto api = UNGH_API ? "https://ungh.cc/repos/" : "https://api.github.com/repos/";
+        std::string repoapi = std::regex_replace(repo, std::regex("https://github.com/"), api);
         requestStats(repoapi, meta);
     }
-}*/
+}
+
+#include <Geode/modify/CCLayer.hpp>
+class $modify(CCLayerExt, CCLayer) {
+    bool init() {
+        auto rtn = CCLayer::init();
+        //ModListLayer
+        ModListLayer* pModListLayer = typeinfo_cast<ModListLayer*>(this);
+        if (pModListLayer) {
+            auto preloadReleaseDataForAllIndex = Mod::get()->getSettingValue<bool>("preloadReleaseDataForAllIndex");
+            if (preloadReleaseDataForAllIndex) setupStatsForAllIndex();
+        }
+        return rtn;
+    };
+};
 
 $on_mod(Loaded) {
     generateAuthorizationData();
