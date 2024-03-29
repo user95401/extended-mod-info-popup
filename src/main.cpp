@@ -286,6 +286,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             statsContainerMenu->setVisible(true);
         }
         else return statsContainerMenu->setVisible(false);
+        std::string inUseStr = (latestReleaseJson == releaseJson) ? "[IN USE FOR STATS]" : "";
         //latestReleases
         /**/matjson::Value latestReleaseJson = "{}";
         for (auto asd : latestReleases) {
@@ -293,11 +294,11 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         }
         if (latestReleaseJson.contains("assets")) {
             //setup labels
-            latestRelease->setString(latestReleaseJson["tag_name"].as_string().c_str());
+            latestRelease->setString((latestReleaseJson["tag_name"].as_string() + inUseStr).c_str());
         }
         else if (latestReleaseJson.contains("release")) {
             //setup labels
-            latestRelease->setString(latestReleaseJson["release"]["tag"].as_string().c_str());
+            latestRelease->setString((latestReleaseJson["release"]["tag"].as_string() + inUseStr).c_str());
         }
     }
     std::string gitrepolnk() {
