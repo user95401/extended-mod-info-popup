@@ -506,17 +506,18 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     latestRelease->getChildByTag(521)->setScale(1.0f);
                 };
                 {
-                    auto download_count = CCLabelTTF::create(
+                    auto published_at = CCLabelTTF::create(
                         "...",
                         "arial",
                         12.f
                     );
-                    statsContainerMenu->addChild(download_count);
-                    download_count->setID("download_count");
-                    download_count->setAnchorPoint({ 0.f, 0.5f });
-                    download_count->setScale(0.65f);
-                    download_count->addChild(CCSprite::createWithSpriteFrameName("GJ_sDownloadIcon_001.png"), 0, 521);
-                    download_count->getChildByTag(521)->setAnchorPoint({ 1.0f, 0.0f });
+                    statsContainerMenu->addChild(published_at);
+                    published_at->setID("published_at");
+                    published_at->setAnchorPoint({ 0.f, 0.5f });
+                    published_at->setScale(0.65f);
+                    published_at->addChild(CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"), 0, 521);
+                    published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
+                    published_at->getChildByTag(521)->setScale(0.6f);
                 };
                 {
                     auto size = CCLabelTTF::create(
@@ -533,18 +534,17 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     size->getChildByTag(521)->setScale(0.6f);
                 };
                 {
-                    auto published_at = CCLabelTTF::create(
+                    auto download_count = CCLabelTTF::create(
                         "...",
                         "arial",
                         12.f
                     );
-                    statsContainerMenu->addChild(published_at);
-                    published_at->setID("published_at");
-                    published_at->setAnchorPoint({ 0.f, 0.5f });
-                    published_at->setScale(0.65f);
-                    published_at->addChild(CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"), 0, 521);
-                    published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
-                    published_at->getChildByTag(521)->setScale(0.6f);
+                    statsContainerMenu->addChild(download_count);
+                    download_count->setID("download_count");
+                    download_count->setAnchorPoint({ 0.f, 0.5f });
+                    download_count->setScale(0.65f);
+                    download_count->addChild(CCSprite::createWithSpriteFrameName("GJ_sDownloadIcon_001.png"), 0, 521);
+                    download_count->getChildByTag(521)->setAnchorPoint({ 1.0f, 0.0f });
                 };
                 statsContainerMenu->updateLayout();
             };
