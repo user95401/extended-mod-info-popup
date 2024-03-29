@@ -42,6 +42,8 @@ std::string formatData(std::string str) {
     str = std::regex_replace(str, std::regex("[TZ]+"), " ");
     //- => .
     str = std::regex_replace(str, std::regex("[-]+"), ".");
+    //lastchar
+    str.pop_back();
     return str;
 }
 
