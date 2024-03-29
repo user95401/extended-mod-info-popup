@@ -28,7 +28,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify Changed files
+        uses: tj-actions/verify-changed-files@v19
+        id: verify-changed-files
+        with:
+          files: |
+             **/*.{cpp,hpp,c,h}
+             
       - name: Build the mod
+        if: steps.verify-changed-files.outputs.files_changed == 'true'
         uses: geode-sdk/build-geode-mod@main
         with:
           combine: true
