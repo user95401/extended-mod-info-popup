@@ -291,7 +291,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         for (auto asd : latestReleases) {
             if (asd->m_modID == getModMeta().getID()) latestReleaseJson = asd->m_json;
         }
-        std::string inUseStr = (latestReleaseJson == releaseJson) ? "[IN USE FOR STATS]" : "";
+        std::string inUseStr = (latestReleaseJson == releaseJson) ? ":" : "";
         if (latestReleaseJson.contains("assets")) {
             //setup labels
             latestRelease->setString((latestReleaseJson["tag_name"].as_string() + inUseStr).c_str());
@@ -492,6 +492,20 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 );
                 statsContainerMenu->updateLayout();
                 {
+                    auto latestRelease = CCLabelTTF::create(
+                        "...",
+                        "arial",
+                        12.f
+                    );
+                    statsContainerMenu->addChild(latestRelease);
+                    latestRelease->setID("latestRelease");
+                    latestRelease->setAnchorPoint({ 0.f, 0.5f });
+                    latestRelease->setScale(1.65f);
+                    latestRelease->addChild(CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"), 0, 521);
+                    latestRelease->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
+                    latestRelease->getChildByTag(521)->setScale(1.0f);
+                };
+                {
                     auto download_count = CCLabelTTF::create(
                         "...",
                         "arial",
@@ -531,20 +545,6 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                     published_at->addChild(CCSprite::createWithSpriteFrameName("GJ_timeIcon_001.png"), 0, 521);
                     published_at->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
                     published_at->getChildByTag(521)->setScale(0.6f);
-                };
-                {
-                    auto latestRelease = CCLabelTTF::create(
-                        "...",
-                        "arial",
-                        12.f
-                    );
-                    statsContainerMenu->addChild(latestRelease);
-                    latestRelease->setID("latestRelease");
-                    latestRelease->setAnchorPoint({ 0.f, 0.5f });
-                    latestRelease->setScale(1.65f);
-                    latestRelease->addChild(CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png"), 0, 521);
-                    latestRelease->getChildByTag(521)->setAnchorPoint({ 1.10f, 0.0f });
-                    latestRelease->getChildByTag(521)->setScale(1.0f);
                 };
                 statsContainerMenu->updateLayout();
             };
