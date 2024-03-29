@@ -12,13 +12,13 @@
 	"settings": {
 		"UNGH_API": {
 			"name": "Use UNGH API only",
-			"description": "umm a because the github rest api has limits\nand this api can give me less data than github api",
+			"description": "umm a because the <cb>github rest api</c> has <cr>limits</c>\nbtw <cj>this api</c> can give me <co>less data than github api</c>",
 			"type": "bool",
 			"default": false
 		},
 		"preloadReleaseDataForAllIndex": {
 			"name": "Preload release data for all index",
-			"description": "<cr>RECOMMENDED ENABLE IT ONLY IF UNGH API IN USE!!!",
+			"description": "<cr>RECOMMENDED ENABLE IT ONLY IF UNGH API IN USE!!!</c>",
 			"type": "bool",
 			"default": false
 		}
