@@ -36,11 +36,8 @@ jobs:
           files: |
              **/*.{cpp,hpp,c,h,json
              
-      - name: Try to fail
-        if: steps.verify-changed-files.outputs.files_changed != 'true'
-        run: exit 0
-             
       - name: Build the mod
+        if: steps.verify-changed-files.outputs.files_changed == 'true'
         uses: geode-sdk/build-geode-mod@main
         with:
           combine: true
