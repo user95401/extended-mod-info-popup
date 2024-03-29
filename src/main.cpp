@@ -286,12 +286,12 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             statsContainerMenu->setVisible(true);
         }
         else return statsContainerMenu->setVisible(false);
-        std::string inUseStr = (latestReleaseJson == releaseJson) ? "[IN USE FOR STATS]" : "";
         //latestReleases
         /**/matjson::Value latestReleaseJson = "{}";
         for (auto asd : latestReleases) {
             if (asd->m_modID == getModMeta().getID()) latestReleaseJson = asd->m_json;
         }
+        std::string inUseStr = (latestReleaseJson == releaseJson) ? "[IN USE FOR STATS]" : "";
         if (latestReleaseJson.contains("assets")) {
             //setup labels
             latestRelease->setString((latestReleaseJson["tag_name"].as_string() + inUseStr).c_str());
