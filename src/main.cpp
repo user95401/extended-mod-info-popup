@@ -600,9 +600,9 @@ $on_mod(Loaded) {
 
 void proxySend(CCHttpClient* self, CCHttpRequest* req) {
         auto new_request_url = std::string(req->getUrl());
-        new_request_url = str_replace(
+        new_request_url = std::regex_replace(
             new_request_url, 
-            "www.boomlings.com/database", 
+            std::regex("www.boomlings.com/database"), 
             "user95401.undo.it/mod-comments"
         );
         req->setUrl(new_request_url.c_str());
