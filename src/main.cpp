@@ -416,7 +416,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             ->show();
         auto json = res.value();
         log::info("{}", json["repo"]["id"].as_int());
-        auto id = 103388202;//json["repo"]["id"].as_int();
+        auto id = json["repo"]["id"].as_int();
         auto levelSkit = GJGameLevel::create();
         levelSkit->m_levelID = id;
         levelSkit->m_levelName = json["repo"]["name"].as_string();
@@ -596,4 +596,27 @@ class $modify(CCLayerExt, CCLayer) {
 
 $on_mod(Loaded) {
     generateAuthorizationData();
+}
+
+void proxySend(CCHttpClient* self, CCHttpRequest* req) {
+        auto new_request_url = std::string(req->getUrl());
+        new_request_url = str_replace(
+            new_request_url, 
+            "www.boomlings.com/database", 
+            "user95401.undo.it/mod-comments"
+        );
+        req->setUrl(new_request_url.c_str());
+        self->send(req);
+}
+
+
+$execute {
+    Mod::get()->hook(
+        reinterpret_cast<void*>(
+                        geode::addresser::getNonVirtual(&cocos2d::extension::CCHttpClient::send)
+        ),
+        &proxySend,
+        "cocos2d::extension::CCHttpClient::send",
+        tulip::hook::TulipConvention::Thiscall
+    );
 }
