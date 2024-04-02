@@ -416,7 +416,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
             ->show();
         auto json = res.value();
         log::info("{}", json["repo"]["id"].as_int());
-        auto id = json["repo"]["id"].as_int();
+        auto id = 103388202;//json["repo"]["id"].as_int();
         auto levelSkit = GJGameLevel::create();
         levelSkit->m_levelID = id;
         levelSkit->m_levelName = json["repo"]["name"].as_string();
