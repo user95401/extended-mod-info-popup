@@ -417,12 +417,12 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         auto json = res.value();
         log::info("{}", json["repo"]["id"].as_int());
         auto id = json["repo"]["id"].as_int();
-        auto levelSkit = GJGameLevel::create();
-        levelSkit->m_levelID = id;
-        levelSkit->m_levelName = json["repo"]["name"].as_string();
-        levelSkit->m_creatorName = json["repo"]["repo"].as_string();
-        levelSkit->m_levelDesc = ZipUtils::base64URLEncode(json["repo"]["description"].as_string());
-        auto InfoLayerForMod = InfoLayer::create(levelSkit, nullptr, nullptr);
+        auto levelListSkit = GJLevelList::create();
+        levelListSkit->m_listID = id;
+        levelListSkit->m_listName = json["repo"]["name"].as_string();
+        levelListSkit->m_creatorName = json["repo"]["repo"].as_string();
+        levelListSkit->m_listDesc = ZipUtils::base64URLEncode(json["repo"]["description"].as_string());
+        auto InfoLayerForMod = InfoLayer::create(nullptr, nullptr, levelListSkit);
         InfoLayerForMod->setID("InfoLayerForMod");
         InfoLayerForMod->show();
     }
@@ -476,7 +476,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 comments->setPosition(26.f, 290.f);
                 comments->setScale(0.9f);
                 comments->m_baseScale = comments->getScale();
-                comments->setVisible(1);
+                comments->setVisible(0);
             };
             //statsContainerMenu
             {
@@ -596,27 +596,4 @@ class $modify(CCLayerExt, CCLayer) {
 
 $on_mod(Loaded) {
     generateAuthorizationData();
-}
-
-void proxySend(CCHttpClient* self, CCHttpRequest* req) {
-        auto new_request_url = std::string(req->getUrl());
-        new_request_url = std::regex_replace(
-            new_request_url, 
-            std::regex("www.boomlings.com/database"), 
-            "user95401.undo.it/mod-comments"
-        );
-        req->setUrl(new_request_url.c_str());
-        self->send(req);
-}
-
-
-$execute {
-    Mod::get()->hook(
-        reinterpret_cast<void*>(
-                        geode::addresser::getNonVirtual(&cocos2d::extension::CCHttpClient::send)
-        ),
-        &proxySend,
-        "cocos2d::extension::CCHttpClient::send",
-        tulip::hook::TulipConvention::Thiscall
-    );
 }
