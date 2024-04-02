@@ -417,7 +417,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
         auto json = res.value();
         log::info("{}", json["repo"]["id"].as_int());
         auto id = json["repo"]["id"].as_int();
-        auto levelSkit = LevelTools::getLevel(id, 0);
+        auto levelSkit = GJGameLevel::create();
         levelSkit->m_levelID = id;
         levelSkit->m_levelName = json["repo"]["name"].as_string();
         levelSkit->m_creatorName = json["repo"]["repo"].as_string();
@@ -476,7 +476,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 comments->setPosition(26.f, 290.f);
                 comments->setScale(0.9f);
                 comments->m_baseScale = comments->getScale();
-                comments->setVisible(0);
+                comments->setVisible(1);
             };
             //statsContainerMenu
             {
