@@ -1,7 +1,7 @@
 {
-	"geode": "2.0.0-beta.21",
+	"geode": "2.0.0-beta.24",
 	"gd": { "win": "2.204", "android": "2.205" },
-	"version": "v1.0.0-beta.3",
+	"version": "v1.1.1",
 	"id": "user95401.extended-mod-info-popup",
 	"name": "extended-mod-info-popup",
 	"developer": "user95401",

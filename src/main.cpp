@@ -443,7 +443,7 @@ class $modify(FLAlertLayerExt, FLAlertLayer) {
                 );
                 this->m_buttonMenu->addChild(webBtn);
                 webBtn->setID("webBtn");
-                webBtn->setPosition(26.f, 180.f);
+                webBtn->setPosition(21.5f, 178.f);
                 webBtn->setScale(0.9f);
                 webBtn->m_baseScale = webBtn->getScale();
             };
